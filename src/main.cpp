@@ -116,7 +116,8 @@ int main()
 
     auto match = std::make_unique<sdbusplus::bus::match::match>(
         *conn,
-        rules::interfacesAdded() + rules::path_namespace("/") +
+        rules::interfacesAdded() +
+            rules::path_namespace("/xyz/openbmc_project/inventory") +
             rules::sender("xyz.openbmc_project.EntityManager"),
         [&timer, &units](sdbusplus::message::message& message) {
             if (message.is_method_error())
