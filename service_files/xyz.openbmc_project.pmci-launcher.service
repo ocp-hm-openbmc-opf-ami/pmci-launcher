@@ -1,5 +1,7 @@
 [Unit]
 Description=PMCI Launcher
+After=modularsystem.service
+Wants=modularsystem.service
 StartLimitBurst=5
 
 [Service]
