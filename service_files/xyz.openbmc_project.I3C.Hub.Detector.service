@@ -1,0 +1,14 @@
+[Unit]
+Description=I3C Hub Detector
+StartLimitBurst=5
+
+[Service]
+Type=dbus
+BusName=xyz.openbmc_project.I3C.Hub.Detector
+ExecStart=/usr/bin/i3c-hub-detector
+SyslogIdentifier=i3c-hub-detector
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -39,9 +39,10 @@ set (CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 #Add header and sources here
 set (SRC_FILES ${PROJECT_SOURCE_DIR}/src/main.cpp)
 
-set (
+set(
     SERVICE_FILES
     ${PROJECT_SOURCE_DIR}/service_files/xyz.openbmc_project.pmci-launcher.service
+    ${PROJECT_SOURCE_DIR}/service_files/xyz.openbmc_project.I3C.Hub.Detector.service
 )
 
 add_executable (${PROJECT_NAME} ${SRC_FILES} ${HEADER_FILES})
@@ -57,3 +58,16 @@ pkg_get_variable(SYSTEMD_SYSTEM_UNIT_DIR systemd systemdsystemunitdir)
 
 install (TARGETS ${PROJECT_NAME} DESTINATION bin)
 install (FILES ${SERVICE_FILES} DESTINATION "${SYSTEMD_SYSTEM_UNIT_DIR}")
+
+# Add I3C Hub detector
+add_executable(i3c-hub-detector
+    ${PROJECT_SOURCE_DIR}/src/i3c_hub_detector.cpp
+)
+
+target_link_libraries(i3c-hub-detector
+    sdbusplus
+    systemd
+    pthread
+)
+
+install(TARGETS i3c-hub-detector DESTINATION bin)
