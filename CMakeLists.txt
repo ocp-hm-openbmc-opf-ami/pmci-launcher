@@ -62,6 +62,7 @@ install (FILES ${SERVICE_FILES} DESTINATION "${SYSTEMD_SYSTEM_UNIT_DIR}")
 # Add I3C Hub detector
 add_executable(i3c-hub-detector
     ${PROJECT_SOURCE_DIR}/src/i3c_hub_detector.cpp
+    ${PROJECT_SOURCE_DIR}/hw/aspeed/i3c_utils.cpp
 )
 
 target_link_libraries(i3c-hub-detector
