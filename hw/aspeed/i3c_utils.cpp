@@ -187,7 +187,7 @@ std::set<std::string> findI3CHubs(const uint8_t topMostRootI3CBusNum)
     // i3c hubs. so lets find the hubs staring from the root i3c bus at
     // first and find the i3c hubs behind them. Note: Hub entries are
     // started with prefix bus number followed by string "4cd"
-    const std::regex hubMatchRegex("\\d+\\-4cd[a-z]{9}");
+    const std::regex hubMatchRegex("\\d+\\-4cd[0-9a-f]{8}");
     std::set<std::string> i3cHubPaths;
 
     for (const auto& entry : std::filesystem::directory_iterator(i3cBusPath))

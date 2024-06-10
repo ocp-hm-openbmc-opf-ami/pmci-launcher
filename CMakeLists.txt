@@ -65,6 +65,10 @@ add_executable(i3c-hub-detector
     ${PROJECT_SOURCE_DIR}/hw/aspeed/i3c_utils.cpp
 )
 
+target_include_directories(i3c-hub-detector PRIVATE
+    ${PROJECT_SOURCE_DIR}/hw/aspeed
+)
+
 target_link_libraries(i3c-hub-detector
     sdbusplus
     systemd
