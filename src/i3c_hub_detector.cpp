@@ -34,21 +34,12 @@ const static constexpr char* hubInterfaceName = "xyz.openbmc_project.I3C.Hub";
 const std::vector<uint8_t> interestedI3CRootBusList = {2 /*I3C_MNG*/,
                                                        5 /*I3C_PCIe*/};
 
-struct HubInfo
-{
-    uint8_t deviceID;
-    int rootBus;
-    std::string rootBusName;
-    std::string targetPortConfig;
-    uint8_t topMostRootBus;
-};
-
 std::unordered_map<
     std::string /*Hub path*/,
     std::pair<HubInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
     hubList;
 
-static HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
+HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
 {
     HubInfo hubInfo;
     hubInfo.deviceID = hw::aspeed::readHubID(hubPath);
@@ -62,7 +53,7 @@ static HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
 
 // Object path template:
 // '/xyz/openbmc_project/I3CHub/<RootBus>_<DeviceID>'.
-static std::string generateObjectPath(const std::string& hubPath)
+std::string generateObjectPath(const std::string& hubPath)
 {
     const std::string hubMatchString = "-4cd";
     std::string hubObjPath = hubBaseObjectPath;
@@ -81,7 +72,7 @@ static std::string generateObjectPath(const std::string& hubPath)
     return hubObjPath;
 }
 
-static void addHubInterface(
+void addHubInterface(
     std::shared_ptr<sdbusplus::asio::object_server> objectServer,
     const std::string& objectPath, const std::string& hubPath,
     const HubInfo& hubInfo)
@@ -99,7 +90,7 @@ static void addHubInterface(
     hubList[hubPath] = std::make_pair(hubInfo, std::move(interface));
 }
 
-static void checkForHubChanges(
+void checkForHubChanges(
     std::shared_ptr<sdbusplus::asio::object_server> objectServer)
 {
     std::unordered_map<std::string, uint8_t> hubPaths;
@@ -166,7 +157,7 @@ static void checkForHubChanges(
     }
 }
 
-static void rescanI3CBusses()
+void rescanI3CBusses()
 {
     std::for_each(interestedI3CRootBusList.begin(),
                   interestedI3CRootBusList.end(), [](uint8_t i3cRootBusNo) {
@@ -174,7 +165,7 @@ static void rescanI3CBusses()
                   });
 }
 
-static void pollI3CHubChanges(
+void pollI3CHubChanges(
     std::shared_ptr<boost::asio::io_context> ioc,
     std::shared_ptr<sdbusplus::asio::object_server> objectServer)
 {
@@ -232,6 +223,7 @@ static void pollI3CHubChanges(
     rescanTimer.async_wait(rescanTimerHandler);
 }
 
+#ifndef UNIT_TESTS
 int main()
 {
     auto ioc = std::make_shared<boost::asio::io_context>();
@@ -250,3 +242,4 @@ int main()
     ioc->run();
     return 0;
 }
+#endif

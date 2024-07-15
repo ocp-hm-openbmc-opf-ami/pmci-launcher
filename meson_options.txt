@@ -1,0 +1,6 @@
+option(
+    'yocto_dep', type: 'feature',  description: 'Use yocto dependencies'
+)
+option(
+    'tests', type: 'feature', description: 'I3cHubDetector Unit Test.', value : 'disabled'
+)

@@ -25,7 +25,7 @@
 #include <set>
 #include <string>
 
-static void readFromFile(const std::string& filePath, std::string& data)
+void readFromFile(const std::string& filePath, std::string& data)
 {
     if (std::filesystem::exists(filePath))
     {
@@ -138,7 +138,7 @@ std::string readRootBusName(const std::string& hubPath)
     }
 }
 
-static std::string getI3CRootBusPath(const uint8_t topMostRootI3CBusNum)
+std::string getI3CRootBusPath(const uint8_t topMostRootI3CBusNum)
 {
     auto search = i3cBusMap.find(topMostRootI3CBusNum);
     if (search == i3cBusMap.end())
@@ -208,7 +208,7 @@ std::set<std::string> findI3CHubs(const uint8_t topMostRootI3CBusNum)
     return i3cHubPaths;
 }
 
-static void rescanI3CBus(const std::string& busPath)
+void rescanI3CBus(const std::string& busPath)
 {
     std::string rescanPath = busPath + "/rescan";
     if (!std::filesystem::exists(rescanPath))
@@ -224,7 +224,7 @@ static void rescanI3CBus(const std::string& busPath)
         phosphor::logging::log<phosphor::logging::level::DEBUG>(
             ("Re-scanning bus:" + rescanPath).c_str());
         std::array<char, 1> writeData = {'1'};
-        int status = write(fd, writeData.data(), writeData.size());
+        ssize_t status = write(fd, writeData.data(), writeData.size());
         if (status != 1)
         {
             phosphor::logging::log<phosphor::logging::level::ERR>(

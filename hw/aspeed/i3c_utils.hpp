@@ -17,9 +17,40 @@
 #pragma once
 
 #include <cstdint>
+#include <sdbusplus/asio/connection.hpp>
+#include <sdbusplus/asio/object_server.hpp>
 #include <set>
 #include <string>
 #include <unordered_map>
+
+void readFromFile(const std::string& filePath, std::string& data);
+
+struct HubInfo
+{
+    uint8_t deviceID;
+    int rootBus;
+    std::string rootBusName;
+    std::string targetPortConfig;
+    uint8_t topMostRootBus;
+};
+
+extern std::unordered_map<
+    std::string /*Hub path*/,
+    std::pair<HubInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
+    hubList;
+
+HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo);
+std::string generateObjectPath(const std::string& hubPath);
+void addHubInterface(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer,
+    const std::string& objectPath, const std::string& hubPath,
+    const HubInfo& hubInfo);
+void checkForHubChanges(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer);
+void rescanI3CBusses();
+void pollI3CHubChanges(
+    std::shared_ptr<boost::asio::io_context> ioc,
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer);
 
 namespace hw
 {
@@ -37,6 +68,7 @@ int findRootBusNo(const std::string& hubPath);
 std::string readRootBusName(const std::string& hubPath);
 std::set<std::string> findI3CHubs(const uint8_t topMostRootI3CBusNum);
 void rescanI3CRootBus(const uint8_t rootI3CBusNum);
-
+std::string getI3CRootBusPath(const uint8_t topMostRootI3CBusNum);
+void rescanI3CBus(const std::string& busPath);
 } // namespace aspeed
 } // namespace hw
