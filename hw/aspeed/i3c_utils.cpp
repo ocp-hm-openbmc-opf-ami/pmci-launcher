@@ -79,7 +79,8 @@ std::string readTPConf(const std::string& hubPath)
     readFromFile(tpConfPath, data);
     if (data.empty())
     {
-        throw std::runtime_error("Failed to read data from tp_conf");
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to read data from tp_conf"));
     }
     return data;
 }
@@ -94,13 +95,17 @@ int findRootBusNo(const std::string& hubPath)
     size_t pos = hubPath.rfind(delimiter);
     if (pos == std::string::npos)
     {
-        throw std::runtime_error("Failed to find delimiter in hubPath");
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to find delimiter in hubPath"));
+        return -1;
     }
     std::string extracted = hubPath.substr(pos + delimiter.length());
     size_t hyphenPos = extracted.find("-");
     if (hyphenPos == std::string::npos)
     {
-        throw std::runtime_error("Failed to find hyphen in hubPath");
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to find hyphen in hubPath"));
+        return -1;
     }
     std::string rootBus = extracted.substr(0, hyphenPos);
     return std::stoi(rootBus); // Expected to throw on error
@@ -111,7 +116,9 @@ std::string readRootBusName(const std::string& hubPath)
     std::size_t lastSlashPos = hubPath.find_last_of('/');
     if (lastSlashPos == std::string::npos)
     {
-        throw std::runtime_error("Failed to find last slash in hubPath");
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to find last slash in hubPath"));
+        return {};
     }
 
     std::string rootBusNamePath = hubPath.substr(0, lastSlashPos) + "/name";
@@ -119,7 +126,9 @@ std::string readRootBusName(const std::string& hubPath)
     readFromFile(rootBusNamePath, data);
     if (data.empty())
     {
-        throw std::runtime_error("Failed to read data from rootBusNamePath");
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to read data from rootBusNamePath"));
+        return {};
     }
 
     // Sample data will look like "3-4cd15771616.tp3" or "1e7a7000.i3c5".
@@ -133,8 +142,9 @@ std::string readRootBusName(const std::string& hubPath)
     }
     else
     {
-        throw std::runtime_error("Failed to find name of the port:" +
-                                 rootBusNamePath);
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+                ("Failed to find name of the port:" + rootBusNamePath).c_str());
+         return {};
     }
 }
 

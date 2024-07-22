@@ -98,9 +98,17 @@ void checkForHubChanges(
     {
         std::set<std::string> hubPathsTemp =
             hw::aspeed::findI3CHubs(i3cRootBusNo);
-        for (const auto& hubPath : hubPathsTemp)
+        if(hubPathsTemp.empty())
         {
-            hubPaths.emplace(hubPath, i3cRootBusNo);
+            phosphor::logging::log<phosphor::logging::level::ERR>(
+              ("Failed to find the Bus:" + i3cRootBusNo));
+        }
+        else
+        {
+            for (const auto& hubPath : hubPathsTemp)
+            {
+                 hubPaths.emplace(hubPath, i3cRootBusNo);
+            }
         }
     }
 
