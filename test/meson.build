@@ -26,7 +26,7 @@ common_test_deps = [
     boost_partial_dep,
 ]
 
-inc_dir = include_directories('../hw/aspeed/')
+inc_dir = include_directories('../hw/aspeed/', '../include/')
 
 test_i3c_hub_src = [
     '../hw/aspeed/i3c_utils.cpp',

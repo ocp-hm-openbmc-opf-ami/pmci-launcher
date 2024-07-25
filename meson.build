@@ -24,7 +24,8 @@ if yocto_build.enabled()
     dep_required = true
 endif
 
-incdir = include_directories('hw/aspeed')
+incdir = include_directories('hw/aspeed',
+                             'include')
 
 boost = dependency('boost', required: dep_required, version : '>=1.79.0',
         modules: [ 'coroutine', 'context'], include_type: 'system')

@@ -14,6 +14,7 @@
 // limitations under the License.
 */
 
+#include "i3c_hub_detector.hpp"
 #include "i3c_utils.hpp"
 
 #include <boost/asio/signal_set.hpp>
@@ -43,8 +44,8 @@ HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
 {
     HubInfo hubInfo;
     hubInfo.deviceID = hw::aspeed::readHubID(hubPath);
-    hubInfo.rootBus = hw::aspeed::findRootBusNo(hubPath);
-    hubInfo.rootBusName = hw::aspeed::readRootBusName(hubPath);
+    hubInfo.bus = hw::aspeed::findBusNo(hubPath);
+    hubInfo.busName = hw::aspeed::readBusName(hubPath);
     hubInfo.targetPortConfig = hw::aspeed::readTPConf(hubPath);
     hubInfo.topMostRootBus = topMostRootBusNo;
 
@@ -52,7 +53,7 @@ HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
 }
 
 // Object path template:
-// '/xyz/openbmc_project/I3CHub/<RootBus>_<DeviceID>'.
+// '/xyz/openbmc_project/I3CHub/<Bus>_<DeviceID>'.
 std::string generateObjectPath(const std::string& hubPath)
 {
     const std::string hubMatchString = "-4cd";
@@ -63,8 +64,7 @@ std::string generateObjectPath(const std::string& hubPath)
         std::string subHubPath = hubPath.substr(
             0, hubPath.find_first_of("/", pos + hubMatchString.length()));
 
-        hubObjPath += "/" +
-                      std::to_string(hw::aspeed::findRootBusNo(subHubPath)) +
+        hubObjPath += "/" + std::to_string(hw::aspeed::findBusNo(subHubPath)) +
                       "_" + std::to_string(hw::aspeed::readHubID(subHubPath));
 
         pos = hubPath.find(hubMatchString, pos + hubMatchString.length());
@@ -81,8 +81,8 @@ void addHubInterface(
     auto interface = objectServer->add_unique_interface(objectPath.c_str(),
                                                         hubInterfaceName);
     interface->register_property("DeviceID", hubInfo.deviceID);
-    interface->register_property("RootBus", hubInfo.rootBus);
-    interface->register_property("RootBusName", hubInfo.rootBusName);
+    interface->register_property("Bus", hubInfo.bus);
+    interface->register_property("BusName", hubInfo.busName);
     interface->register_property("TargetPortConfig", hubInfo.targetPortConfig);
     interface->register_property("TopMostRootBus", hubInfo.topMostRootBus);
     interface->initialize();
@@ -122,8 +122,8 @@ void checkForHubChanges(
             auto& hubInfo = it->second.first;
             std::string hubInfoLog =
                 "Hub removed. DeviceID: " + std::to_string(hubInfo.deviceID) +
-                ", " + "RootBus: " + std::to_string(hubInfo.rootBus) + ", " +
-                "RootBusName: " + hubInfo.rootBusName + ", " +
+                ", " + "Bus: " + std::to_string(hubInfo.bus) + ", " +
+                "BusName: " + hubInfo.busName + ", " +
                 "TargetPortConfig: " + hubInfo.targetPortConfig + ", " +
                 "TopMostRootBus: " + std::to_string(hubInfo.topMostRootBus);
             phosphor::logging::log<phosphor::logging::level::INFO>(
@@ -141,7 +141,7 @@ void checkForHubChanges(
     }
 
     // Check for new hubs and add them
-    for (auto const& [hubPath, i3cRootBusNo] : hubPaths)
+    for (auto const& [hubPath, i3cBusNo] : hubPaths)
     {
         if (hubList.find(hubPath) == hubList.end())
         {
@@ -149,14 +149,14 @@ void checkForHubChanges(
             phosphor::logging::log<phosphor::logging::level::DEBUG>(
                 ("New Hub found: " + hubPath).c_str());
 
-            HubInfo hubInfo = getHubInfo(hubPath, i3cRootBusNo);
+            HubInfo hubInfo = getHubInfo(hubPath, i3cBusNo);
             std::string objPath = generateObjectPath(hubPath);
             addHubInterface(objectServer, objPath, hubPath, hubInfo);
 
             std::string hubInfoLog =
                 "Hub added. DeviceID: " + std::to_string(hubInfo.deviceID) +
-                ", " + "RootBus: " + std::to_string(hubInfo.rootBus) + ", " +
-                "RootBusName: " + hubInfo.rootBusName + ", " +
+                ", " + "Bus: " + std::to_string(hubInfo.bus) + ", " +
+                "BusName: " + hubInfo.busName + ", " +
                 "TargetPortConfig: " + hubInfo.targetPortConfig + ", " +
                 "TopMostRootBus: " + std::to_string(hubInfo.topMostRootBus);
             phosphor::logging::log<phosphor::logging::level::INFO>(
