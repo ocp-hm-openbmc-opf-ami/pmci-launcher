@@ -28,6 +28,8 @@ struct HubInfo
     std::string busName;
     std::string targetPortConfig;
     uint8_t topMostRootBus;
+    std::string name;
+    std::vector<std::string> activeTargetPortList;
 };
 
 extern std::unordered_map<

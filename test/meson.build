@@ -31,6 +31,7 @@ inc_dir = include_directories('../hw/aspeed/', '../include/')
 test_i3c_hub_src = [
     '../hw/aspeed/i3c_utils.cpp',
     '../src/i3c_hub_detector.cpp',
+    '../src/hub_configuration.cpp',
     'test_utils.cpp'
 ]
 

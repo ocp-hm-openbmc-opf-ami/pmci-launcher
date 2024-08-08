@@ -103,6 +103,7 @@ endif
 
 executable('i3c-hub-detector',
     'src/i3c_hub_detector.cpp',
+    'src/hub_configuration.cpp',
     'hw/aspeed/i3c_utils.cpp',
     dependencies: deps,
     include_directories : incdir,

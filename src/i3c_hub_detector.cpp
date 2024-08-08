@@ -15,6 +15,8 @@
 */
 
 #include "i3c_hub_detector.hpp"
+
+#include "hub_configuration.hpp"
 #include "i3c_utils.hpp"
 
 #include <boost/asio/signal_set.hpp>
@@ -40,6 +42,38 @@ std::unordered_map<
     std::pair<HubInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
     hubList;
 
+// TODO: Create an 'I3CDeviceManager' class and move APIs and below variables to
+// it.
+static std::unique_ptr<HubConfiguration> hubConfig = nullptr;
+
+std::vector<std::string>
+    getActiveTPList(const std::vector<std::string>& channelNames,
+                    const std::string& tpConf)
+{
+    constexpr std::size_t tpConfSize = 8;
+    if (tpConf.size() != tpConfSize || channelNames.size() < tpConfSize)
+    {
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+            "getActiveTPList: invalid size",
+            phosphor::logging::entry("SIZE=%d", tpConf.size()),
+            phosphor::logging::entry("CHANNEL_SIZE=%d", channelNames.size()));
+        return {};
+    }
+    // A tpConf value may look like "suuisuud", which means I3C hub port 3 and 7
+    // are configured as SMBus, port 4 is configured as I3C, port 0 is disabled
+    // and 1, 2, 5, 6 are undefined.
+    std::vector<std::string> activeTPList;
+    for (std::size_t i = 0; i < tpConf.size(); ++i)
+    {
+        if (tpConf[i] == 's' /*For SMBus devices*/ ||
+            tpConf[i] == 'i' /*For I3C devices*/)
+        {
+            activeTPList.push_back(channelNames[tpConfSize - i - 1]);
+        }
+    }
+    return activeTPList;
+}
+
 HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
 {
     HubInfo hubInfo;
@@ -49,6 +83,13 @@ HubInfo getHubInfo(const std::string& hubPath, uint8_t topMostRootBusNo)
     hubInfo.targetPortConfig = hw::aspeed::readTPConf(hubPath);
     hubInfo.topMostRootBus = topMostRootBusNo;
 
+    ConfigurationMap config =
+        hubConfig->findI3CHubConfig(hubInfo.deviceID, topMostRootBusNo);
+    hubInfo.name = hubConfig->getHubName(config);
+
+    std::vector<std::string> channelNames = hubConfig->getChannelNames(config);
+    hubInfo.activeTargetPortList =
+        getActiveTPList(channelNames, hubInfo.targetPortConfig);
     return hubInfo;
 }
 
@@ -85,6 +126,9 @@ void addHubInterface(
     interface->register_property("BusName", hubInfo.busName);
     interface->register_property("TargetPortConfig", hubInfo.targetPortConfig);
     interface->register_property("TopMostRootBus", hubInfo.topMostRootBus);
+    interface->register_property("Name", hubInfo.name);
+    interface->register_property("ActiveTargetPortList",
+                                 hubInfo.activeTargetPortList);
     interface->initialize();
 
     hubList[hubPath] = std::make_pair(hubInfo, std::move(interface));
@@ -245,6 +289,7 @@ int main()
         ioc->stop();
     });
 
+    hubConfig = std::make_unique<HubConfiguration>(conn);
     pollI3CHubChanges(ioc, objectServer);
 
     ioc->run();

@@ -224,12 +224,25 @@ TEST_F(I3CHubTest, RemovesHubsNotPresentInScan)
         currentPath + "/1e7a4000.i3c2/i3c-1/1-4cd092c310a/i3c-2/2-4cd092c310b";
     std::string hubPath2 =
         currentPath + "/1e7a4000.i3c2/i3c-1/1-4cd092c310a/i3c-2/2-4cd092c310c";
-    hubList[hubPath1] =
-        std::make_pair(HubInfo{1, 1, "RootBus1", "TPConf1", 0},
-                       std::unique_ptr<sdbusplus::asio::dbus_interface>());
-    hubList[hubPath2] =
-        std::make_pair(HubInfo{2, 2, "RootBus2", "TPConf2", 0},
-                       std::unique_ptr<sdbusplus::asio::dbus_interface>());
+    hubList[hubPath1] = std::make_pair(
+        HubInfo{1,
+                1,
+                "RootBus1",
+                "TPConf1",
+                0,
+                "PCIe1 Hub",
+                {"PCIe1_Conn1", "PCIe1_Conn2", "PCIe2_Conn1", "PCIe2_Conn2",
+                 "PCIe3_Conn1", "PCIe3_Conn2", "PCIe4_Conn1", "PCIe4_Conn2"}},
+        std::unique_ptr<sdbusplus::asio::dbus_interface>());
+    hubList[hubPath2] = std::make_pair(
+        HubInfo{2,
+                2,
+                "RootBus2",
+                "TPConf2",
+                0,
+                "PCIe2 Hub",
+                {"PCIe9_Conn1", "PCIe9_Conn2", "PCIe10_Conn1", "PCIe10_Conn2"}},
+        std::unique_ptr<sdbusplus::asio::dbus_interface>());
 
     checkForHubChanges(objectServer);
 

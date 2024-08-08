@@ -1,5 +1,7 @@
 [Unit]
 Description=I3C Hub Detector
+After=xyz.openbmc_project.EntityManager.service \
+    xyz.openbmc_project.ObjectMapper.service
 StartLimitBurst=5
 
 [Service]
