@@ -65,6 +65,11 @@ if not phosphor_logging_dep.found()
     phosphor_logging_dep = phosphor_dbus_interfaces_proj.get_variable('phosphor_logging_dep')
 endif
 
+i2c = meson.get_compiler('cpp').find_library('i2c')
+if not i2c.found()
+    error('i2c is required')
+endif
+
 threads = dependency('threads')
 
 configure_file(
@@ -87,6 +92,7 @@ deps = [
     boost,
     threads,
     sdbusplus,
+    i2c,
     phosphor_dbus_interfaces_dep,
     phosphor_logging_dep
 ]

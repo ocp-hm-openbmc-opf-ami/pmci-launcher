@@ -32,6 +32,28 @@ struct HubInfo
     std::vector<std::string> activeTargetPortList;
 };
 
+struct I3cDevInfo
+{
+    int bcr;
+    std::string dcr;
+    int bus;
+    std::vector<std::string> devices;
+    std::string phyLoc;
+    std::string pid;
+    std::string targetPort;
+    uint8_t topMostRootBus;
+};
+
+struct I2cDevInfo
+{
+    int address;
+    int bus;
+    std::string device;
+    std::string locationCode;
+    std::string targetPort;
+    uint8_t topMostRootBus;
+};
+
 extern std::unordered_map<
     std::string /*Hub path*/,
     std::pair<HubInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>

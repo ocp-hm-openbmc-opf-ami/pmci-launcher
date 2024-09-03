@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <dirent.h>
+
 #include <cstdint>
 #include <sdbusplus/asio/connection.hpp>
 #include <sdbusplus/asio/object_server.hpp>
@@ -36,6 +38,14 @@ static const std::unordered_map<uint8_t, std::string> i3cBusMap{
     {3, "1e7a5000.i3c3"}, {4, "1e7a6000.i3c4"}, {5, "1e7a7000.i3c5"}};
 
 uint8_t readHubID(const std::string& hubPath);
+int readBcr(const std::string& hubPath);
+std::string readDcr(const std::string& hubPath);
+std::string readI2cBusName(const std::string& hubPath);
+int extractI3cBus(const std::string& path);
+int extractI2cBus(const std::string& path);
+std::vector<int> findI2CAddress(const std::string& devfd);
+std::string readI3cDevices(const std::string& hubPath, const std::string& pid);
+std::string readPid(const std::string& hubPath);
 std::string readTPConf(const std::string& hubPath);
 int findBusNo(const std::string& hubPath);
 std::string readBusName(const std::string& hubPath);
@@ -43,5 +53,32 @@ std::set<std::string> findI3CHubs(const uint8_t topMostRootI3CBusNum);
 void rescanI3CRootBus(const uint8_t rootI3CBusNum);
 std::string getI3CRootBusPath(const uint8_t topMostRootI3CBusNum);
 void rescanI3CBus(const std::string& busPath);
+std::string processDirectories(const std::string& basePath);
+std::string readHubTargetPortNo(const std::string& directoryPath);
+void findAllHubsFromPath(const std::string& basePath,
+                         std::vector<std::string>& directories);
+constexpr void closeFileFromPointer(int* fd)
+{
+    if (fd)
+    {
+        close(reinterpret_cast<long>(fd));
+    }
+}
+using FileHandle = std::unique_ptr<int, std::function<void(int*)>>;
+constexpr void closeDirFromPointer(DIR* dir)
+{
+    if (dir)
+    {
+        closedir(dir);
+    }
+}
+using DirHandle = std::unique_ptr<DIR, std::function<void(DIR*)>>;
+// Address ranges for specific operations
+constexpr int i2cStartAddress = 0x03;
+constexpr int i2cEndAddress = 0x77;
+constexpr int readStartAddress1 = 0x30;
+constexpr int readEndAddress1 = 0x37;
+constexpr int readStartAddress2 = 0x50;
+constexpr int readEndAddress2 = 0x5F;
 } // namespace aspeed
 } // namespace hw

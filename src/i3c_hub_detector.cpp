@@ -30,6 +30,11 @@
 
 const std::string hubBaseObjectPath = "/xyz/openbmc_project/I3CHub";
 const static constexpr char* hubInterfaceName = "xyz.openbmc_project.I3C.Hub";
+const static constexpr char* i3cInterfaceName = "xyz.openbmc_project.I3CDevice";
+const static constexpr char* i2cInterfaceName = "xyz.openbmc_project.I2CDevice";
+
+const std::string i3cIntName = "/I3CDevice/";
+const std::string i2cIntName = "/I2CDevice/";
 
 // Use the list of BHS platform for now.
 // TODO: get this from entity-manager or scan for all root busses, depending on
@@ -41,6 +46,16 @@ std::unordered_map<
     std::string /*Hub path*/,
     std::pair<HubInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
     hubList;
+
+std::unordered_map<
+    std::string,
+    std::pair<I3cDevInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
+    i3cDeviceInfoList;
+
+std::unordered_map<
+    std::string,
+    std::pair<I2cDevInfo, std::unique_ptr<sdbusplus::asio::dbus_interface>>>
+    i2cDeviceInfoList;
 
 // TODO: Create an 'I3CDeviceManager' class and move APIs and below variables to
 // it.
@@ -134,6 +149,231 @@ void addHubInterface(
     hubList[hubPath] = std::make_pair(hubInfo, std::move(interface));
 }
 
+void registerI3CToDbus(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer,
+    const std::string& objPath, I3cDevInfo i3cDeviceinfo)
+{
+    auto interface =
+        objectServer->add_unique_interface(objPath.c_str(), i3cInterfaceName);
+
+    interface->register_property("BCR", i3cDeviceinfo.bcr);
+    interface->register_property("Bus", i3cDeviceinfo.bus);
+    interface->register_property("DCR", i3cDeviceinfo.dcr);
+    interface->register_property("Devices", i3cDeviceinfo.devices);
+    interface->register_property("PhysicalLocation", i3cDeviceinfo.phyLoc);
+    interface->register_property("PID", i3cDeviceinfo.pid);
+    interface->register_property("TargetPort", i3cDeviceinfo.targetPort);
+    interface->register_property("TopMostRootBus",
+                                 i3cDeviceinfo.topMostRootBus);
+    interface->initialize();
+
+    i3cDeviceInfoList[objPath] =
+        std::make_pair(i3cDeviceinfo, std::move(interface));
+}
+
+void registerI2CToDbus(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer,
+    I2cDevInfo i2cDeviceinfo, const std::string& objPath)
+{
+    auto interface =
+        objectServer->add_unique_interface(objPath.c_str(), i2cInterfaceName);
+
+    interface->register_property("Address", i2cDeviceinfo.address);
+    interface->register_property("Bus", i2cDeviceinfo.bus);
+    interface->register_property("Device", i2cDeviceinfo.device);
+    interface->register_property("LocationCode", i2cDeviceinfo.locationCode);
+    interface->register_property("TargetPort", i2cDeviceinfo.targetPort);
+    interface->register_property("TopMostRootBus",
+                                 i2cDeviceinfo.topMostRootBus);
+    interface->initialize();
+
+    i2cDeviceInfoList[objPath] =
+        std::make_pair(i2cDeviceinfo, std::move(interface));
+}
+
+void discoverI3cDevicesBehindHub(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer,
+    const std::string& hubPath, const std::string& objPath,
+    uint8_t topMostRootBus, uint8_t hubId)
+
+{
+    std::unordered_map<std::string, I3cDevInfo> i3cDevsTemp;
+
+    try
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(hubPath))
+        {
+            std::string mystring = entry.path().filename().string();
+
+            if (entry.is_directory() &&
+                entry.path().filename().string().find("i3c") == 0)
+            {
+                I3cDevInfo i3cDeviceinfo;
+                std::string newDevPath = entry.path();
+
+                i3cDeviceinfo.bcr = hw::aspeed::readBcr(newDevPath);
+                i3cDeviceinfo.dcr = hw::aspeed::readDcr(newDevPath);
+                i3cDeviceinfo.bus = hw::aspeed::extractI3cBus(newDevPath);
+                i3cDeviceinfo.pid = hw::aspeed::readPid(newDevPath);
+
+                i3cDeviceinfo.devices.push_back(
+                    hw::aspeed::readI3cDevices(newDevPath, i3cDeviceinfo.pid));
+
+                ConfigurationMap config =
+                    hubConfig->findI3CHubConfig(hubId, topMostRootBus);
+
+                std::vector<std::string> channelNames =
+                        hubConfig->getChannelNames(config);
+                std::string hubTgtports =
+                        hw::aspeed::processDirectories(newDevPath);
+                std::string devPath = newDevPath + "/";
+                std::string currentTgtPort = hw::aspeed::readBusName(devPath);
+  
+                i3cDeviceinfo.targetPort = currentTgtPort + hubTgtports;
+                if (!channelNames.empty())
+                {
+                    i3cDeviceinfo.phyLoc = channelNames[std::stoi(currentTgtPort)];
+                }
+                i3cDeviceinfo.topMostRootBus = topMostRootBus;
+
+                std::string newObjPath =
+                    objPath + i3cIntName + std::to_string(i3cDeviceinfo.bus) +
+                    "_" + i3cDeviceinfo.targetPort + "_" + i3cDeviceinfo.pid;
+
+                i3cDevsTemp.emplace(newObjPath, i3cDeviceinfo);
+
+                for (auto it = i3cDeviceInfoList.begin();
+                     it != i3cDeviceInfoList.end();)
+                {
+                    if (i3cDevsTemp.find(it->first) == i3cDevsTemp.end())
+                    {
+                        it = i3cDeviceInfoList.erase(it);
+                    }
+                    else
+                    {
+                        ++it;
+                    }
+                }
+
+                for (auto const& [i3cDevPath, i3cdevInfo] : i3cDevsTemp)
+                {
+                    if (i3cDeviceInfoList.find(i3cDevPath) ==
+                        i3cDeviceInfoList.end())
+                    {
+                        registerI3CToDbus(objectServer, i3cDevPath, i3cdevInfo);
+                    }
+                }
+            }
+        }
+    }
+
+    catch (const std::filesystem::filesystem_error& e)
+    {
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+            "discoverI3cDevicesBehindHub Loop Error.",
+            phosphor::logging::entry("Exception:", e.what()));
+    }
+}
+
+void discoverI2cDevicesBehindHub(
+    std::shared_ptr<sdbusplus::asio::object_server> objectServer,
+    const std::string& hubPath, const std::string& objPath,
+    uint8_t topMostRootBus, uint8_t hubId)
+
+{
+    std::unordered_map<std::string, I2cDevInfo> i2cDevsTemp;
+    try
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(hubPath))
+        {
+            if (entry.is_directory() &&
+                entry.path().filename().string().find("i2c") == 0)
+            {
+                I2cDevInfo i2cDeviceinfo;
+                std::string i2cDev = "/dev/i2c-";
+
+                i2cDeviceinfo.bus = hw::aspeed::extractI2cBus(entry.path());
+                i2cDeviceinfo.device =
+                    i2cDev + std::to_string(i2cDeviceinfo.bus);
+
+                std::string hubTgtports =
+                    hw::aspeed::processDirectories(entry.path());
+                std::vector<int> addresses =
+                    hw::aspeed::findI2CAddress(i2cDeviceinfo.device);
+
+                if (addresses.empty())
+                {
+                    phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                        ("No I2c slaves Addresses: " + i2cDeviceinfo.device)
+                            .c_str());
+                    continue;
+                }
+                else
+                {
+                    for (int address : addresses)
+                    {
+                        std::string printadd = std::to_string(address);
+
+                        i2cDeviceinfo.address = address;
+
+                        ConfigurationMap config =
+                            hubConfig->findI3CHubConfig(hubId, topMostRootBus);
+                        std::vector<std::string> channelNames =
+                            hubConfig->getChannelNames(config);
+
+                        std::string currentTgtPort = 
+                            hw::aspeed::readI2cBusName(entry.path());
+
+                        i2cDeviceinfo.targetPort = currentTgtPort + hubTgtports;
+                        if (!channelNames.empty())
+                        {
+                            i2cDeviceinfo.locationCode =
+                                channelNames[std::stoi(currentTgtPort)];
+                        }
+
+                        i2cDeviceinfo.topMostRootBus = topMostRootBus;
+                        std::string newObjPath =
+                            objPath + i2cIntName +
+                            std::to_string(i2cDeviceinfo.bus) + "_" +
+                            i2cDeviceinfo.targetPort + "_" +
+                            std::to_string(i2cDeviceinfo.address);
+
+                        i2cDevsTemp.emplace(newObjPath, i2cDeviceinfo);
+                    }
+                }
+
+                for (auto it = i2cDeviceInfoList.begin();
+                     it != i2cDeviceInfoList.end();)
+                {
+                    if (i2cDevsTemp.find(it->first) == i2cDevsTemp.end())
+                    {
+                        it = i2cDeviceInfoList.erase(it);
+                    }
+                    else
+                    {
+                        ++it;
+                    }
+                }
+
+                for (auto const& [i2cDevPath, i2cdevInfo] : i2cDevsTemp)
+                {
+                    if (i2cDeviceInfoList.find(i2cDevPath) ==
+                        i2cDeviceInfoList.end())
+                    {
+                        registerI2CToDbus(objectServer, i2cdevInfo, i2cDevPath);
+                    }
+                }
+            }
+        }
+    }
+    catch (const std::filesystem::filesystem_error& e)
+    {
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+            "discoverI2cDevicesBehindHub Loop Error.",
+            phosphor::logging::entry("Exception:", e.what()));
+    }
+}
+
 void checkForHubChanges(
     std::shared_ptr<sdbusplus::asio::object_server> objectServer)
 {
@@ -142,16 +382,17 @@ void checkForHubChanges(
     {
         std::set<std::string> hubPathsTemp =
             hw::aspeed::findI3CHubs(i3cRootBusNo);
-        if(hubPathsTemp.empty())
+        if (hubPathsTemp.empty())
         {
+            std::string BusNo = std::to_string(i3cRootBusNo);
             phosphor::logging::log<phosphor::logging::level::ERR>(
-              ("Failed to find the Bus:" + i3cRootBusNo));
+                ("Failed to find the Bus:" + BusNo).c_str());
         }
         else
         {
             for (const auto& hubPath : hubPathsTemp)
             {
-                 hubPaths.emplace(hubPath, i3cRootBusNo);
+                hubPaths.emplace(hubPath, i3cRootBusNo);
             }
         }
     }
@@ -205,6 +446,11 @@ void checkForHubChanges(
                 "TopMostRootBus: " + std::to_string(hubInfo.topMostRootBus);
             phosphor::logging::log<phosphor::logging::level::INFO>(
                 hubInfoLog.c_str());
+
+            discoverI3cDevicesBehindHub(objectServer, hubPath, objPath,
+                                    hubInfo.topMostRootBus, hubInfo.deviceID);
+            discoverI2cDevicesBehindHub(objectServer, hubPath, objPath,
+                                    hubInfo.topMostRootBus, hubInfo.deviceID);
         }
     }
 }
