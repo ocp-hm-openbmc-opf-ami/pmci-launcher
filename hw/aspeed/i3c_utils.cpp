@@ -375,8 +375,7 @@ std::string getI3CRootBusPath(const uint8_t topMostRootI3CBusNum)
     }
 
     std::string busName = search->second;
-    std::string deviceDirPath =
-        "/sys/devices/platform/ahb/ahb:apb/ahb:apb:bus@1e7a0000/" + busName;
+    std::string deviceDirPath = "/sys/bus/platform/devices/" + busName;
     if (!std::filesystem::exists(deviceDirPath))
     {
         phosphor::logging::log<phosphor::logging::level::WARNING>(
