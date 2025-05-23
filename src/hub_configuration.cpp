@@ -158,3 +158,29 @@ std::vector<std::string>
     }
     return {};
 }
+
+std::vector<uint8_t> HubConfiguration::getBusList()
+{
+    phosphor::logging::log<phosphor::logging::level::INFO>("Getting bus list");
+    std::vector<uint8_t> busList;
+    for (const auto& config : i3cHubConfigs)
+    {
+        std::vector<uint64_t> buses;
+        if (getField(config, "Bus", buses))
+        {
+            for (const auto& bus : buses)
+            {
+                busList.push_back(static_cast<uint8_t>(bus));
+                phosphor::logging::log<phosphor::logging::level::DEBUG>(
+                    ("Bus: " + std::to_string(bus) + " added to list").c_str());
+            }
+        }
+        else
+        {
+            phosphor::logging::log<phosphor::logging::level::ERR>(
+                "Failed to get bus list");
+            return {};
+        }
+    }
+    return busList;
+}

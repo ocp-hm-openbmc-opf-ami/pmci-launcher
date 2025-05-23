@@ -23,8 +23,8 @@
 #include <variant>
 #include <vector>
 
-using ConfigurationField =
-    std::variant<uint64_t, std::string, std::vector<std::string>>;
+using ConfigurationField = std::variant<uint64_t, std::vector<uint64_t>,
+                                        std::string, std::vector<std::string>>;
 using ConfigurationName = std::string;
 using ConfigurationMap =
     std::unordered_map<ConfigurationName, ConfigurationField>;
@@ -46,6 +46,7 @@ class HubConfiguration
                                       const uint8_t topMostRootBus);
     std::string getHubName(const ConfigurationMap& config);
     std::vector<std::string> getChannelNames(const ConfigurationMap& config);
+    std::vector<uint8_t> getBusList();
 
   private:
     std::vector<std::string> getConfigurationPaths();

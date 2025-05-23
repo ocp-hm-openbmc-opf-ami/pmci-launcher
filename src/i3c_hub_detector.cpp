@@ -36,11 +36,7 @@ const static constexpr char* i2cInterfaceName = "xyz.openbmc_project.I2CDevice";
 const std::string i3cIntName = "/I3CDevice/";
 const std::string i2cIntName = "/I2CDevice/";
 
-// Use the list of BHS platform for now.
-// TODO: get this from entity-manager or scan for all root busses, depending on
-// future use cases.
-const std::vector<uint8_t> interestedI3CRootBusList = {2 /*I3C_MNG*/,
-                                                       5 /*I3C_PCIe*/};
+std::vector<uint8_t> interestedI3CRootBusList = {};
 
 std::unordered_map<
     std::string /*Hub path*/,
@@ -529,6 +525,29 @@ int main()
     auto objectServer = std::make_shared<sdbusplus::asio::object_server>(conn);
     conn->request_name("xyz.openbmc_project.I3C.Hub.Detector");
 
+    static sdbusplus::bus::match_t interfacesAddedMatch(
+        *conn,
+        "type='signal',interface='org.freedesktop.DBus.ObjectManager',"
+        "member='InterfacesAdded',path='/xyz/openbmc_project/inventory'",
+        [conn](sdbusplus::message::message& msg) {
+            sdbusplus::message::object_path objPath;
+            std::map<std::string,
+                     std::map<std::string, std::variant<std::vector<uint64_t>>>>
+                interfaces;
+            msg.read(objPath, interfaces);
+
+            auto it =
+                interfaces.find("xyz.openbmc_project.Configuration.I3CHub");
+            if (it != interfaces.end())
+            {
+                phosphor::logging::log<phosphor::logging::level::INFO>(
+                    "I3CHub config changed, reloading configuration.");
+
+                hubConfig = std::make_unique<HubConfiguration>(conn);
+                interestedI3CRootBusList = hubConfig->getBusList();
+            }
+        });
+
     boost::asio::signal_set signals(*ioc, SIGINT, SIGTERM);
     signals.async_wait([ioc](const boost::system::error_code&, const int&) {
         // Stop processing events
@@ -536,6 +555,12 @@ int main()
     });
 
     hubConfig = std::make_unique<HubConfiguration>(conn);
+    interestedI3CRootBusList = hubConfig->getBusList();
+    if (interestedI3CRootBusList.empty())
+    {
+        phosphor::logging::log<phosphor::logging::level::ERR>(
+            "No I3C root bus found. Exiting.");
+    }
     pollI3CHubChanges(ioc, objectServer);
 
     ioc->run();
